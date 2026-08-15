@@ -193,13 +193,13 @@ def navigate_and_search(page, url: str, game: str, preferred_lots: List[str]):
         return [("All locations", digest, lines)]
 
     game_opt = option_matches(game_sel["options"], game)
-if not game_opt:
-    print(f"\nCould not find game option matching: {game}")
-    print("A&M game dropdown currently contains:")
-    for opt in game_sel["options"]:
-        print(f"  TEXT: {opt['text']!r} | VALUE: {opt['value']!r}")
-    print("")
-    return []
+    if not game_opt:
+        print(f"\nCould not find game option matching: {game}")
+        print("A&M game dropdown currently contains:")
+        for opt in game_sel["options"]:
+            print(f"  TEXT: {opt['text']!r} | VALUE: {opt['value']!r}")
+        print("")
+        return []
 
     game_locator = page.locator("select").nth(game_sel["index"])
     try:
