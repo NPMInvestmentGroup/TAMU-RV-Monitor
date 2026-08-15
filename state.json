@@ -1,5 +1,82 @@
 {
-  "initialized": false,
-  "telegram_test_sent": false,
-  "sources": {}
+  "initialized": true,
+  "sources": {
+    "12th_man": {
+      "diagnostic": {
+        "candidate_count": 2,
+        "candidates": [
+          "Equine Complex",
+          "Olsen RV"
+        ]
+      },
+      "items": [
+        {
+          "detail": "Equine Complex"
+        },
+        {
+          "detail": "Olsen RV"
+        }
+      ],
+      "ok": true,
+      "page_fingerprint": "c855b5e757d82726aa66ebfb885bebe8885a24498dc236ac0d4795f66feb2061",
+      "reason": ""
+    },
+    "transportation": {
+      "diagnostic": {
+        "active_game_options": [],
+        "all_game_options": [
+          {
+            "text": "Please select a game",
+            "value": "0"
+          }
+        ],
+        "all_selects": [
+          {
+            "aria": "",
+            "id": "PageContent_PageContent_ddlgame",
+            "index": 0,
+            "name": "ctl00$ctl00$PageContent$PageContent$ddlgame",
+            "options": [
+              {
+                "text": "Please select a game",
+                "value": "0"
+              }
+            ]
+          },
+          {
+            "aria": "",
+            "id": "PageContent_PageContent_ddllocation",
+            "index": 1,
+            "name": "ctl00$ctl00$PageContent$PageContent$ddllocation",
+            "options": [
+              {
+                "text": "All Available Lots",
+                "value": "all"
+              },
+              {
+                "text": "Aggie RV Park",
+                "value": "ARP"
+              },
+              {
+                "text": "Lot 58",
+                "value": "058"
+              },
+              {
+                "text": "Olsen",
+                "value": "OLS"
+              },
+              {
+                "text": "Penberthy",
+                "value": "PEN"
+              }
+            ]
+          }
+        ]
+      },
+      "items": [],
+      "ok": true,
+      "reason": ""
+    }
+  },
+  "telegram_test_sent": true
 }
