@@ -1,15 +1,8 @@
 {
-  "check_all_2026_home_games": true,
-  "games": [
-    "Missouri State",
-    "Arizona State",
-    "Kentucky",
-    "Arkansas",
-    "The Citadel",
-    "Tennessee",
-    "Texas"
-  ],
+  "preferred_games": [],
   "preferred_lots": [],
+  "telegram_test_once": true,
+  "debug": true,
   "sources": {
     "transportation": {
       "name": "Texas A&M Transportation RV Exchange",
@@ -19,7 +12,5 @@
       "name": "12th Man RV Space Exchange",
       "url": "https://transport.tamu.edu/parking/events/rvexchange.aspx"
     }
-  },
-  "notify_on_first_run": false,
-  "debug": false
+  }
 }
