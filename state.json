@@ -1,4 +1,200 @@
 {
-  "initialized": false,
-  "checks": {}
+  "checks": {
+    "12th_man|Arizona State|12th Man R Lot (74)": {
+      "digest": "c06098ec73c226252c37b84a05eb01eb1693f2fec19834e8f270bee6c611fadc",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "9/12 Arizona State"
+      ]
+    },
+    "12th_man|Arizona State|Equine Complex": {
+      "digest": "4bed642ac97b7bba342fc0b751035f6cd07f0a478134486beff75f95d89a0287",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "9/12 Arizona State"
+      ]
+    },
+    "12th_man|Arizona State|Olsen RV": {
+      "digest": "f7697aacaba8bd92aee1788e553a69541cb0be0f1d773ba2e71ff3b36b0e50cd",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "9/12 Arizona State"
+      ]
+    },
+    "12th_man|Arkansas|12th Man R Lot (74)": {
+      "digest": "a8729c88f1bc77ba2ac58fce9a797f6002402817faee9cc1723b302b7fadeb01",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "10/3 Arkansas"
+      ]
+    },
+    "12th_man|Arkansas|Equine Complex": {
+      "digest": "c2ed5fd29709f3f8147f4b46051a8caafb52d861f7b7fc1760278d3908db631f",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "10/3 Arkansas"
+      ]
+    },
+    "12th_man|Arkansas|Olsen RV": {
+      "digest": "aaaa7cb27314506af0cc0c033ae32fdbef778d9441f2abcdec3f1f60dffe575d",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "10/3 Arkansas"
+      ]
+    },
+    "12th_man|Kentucky|12th Man R Lot (74)": {
+      "digest": "a1cfa4be344991452cd3b04c6da3fce3571363959b595c3e79c7b61fe52986e9",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "9/19 Kentucky"
+      ]
+    },
+    "12th_man|Kentucky|Equine Complex": {
+      "digest": "7cb885b24c07772ce66b8391517247d128f5c9396acaeaab3ee202a81f8f66cf",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "9/19 Kentucky"
+      ]
+    },
+    "12th_man|Kentucky|Olsen RV": {
+      "digest": "65d28b580a29d62d7d27e143f2d6e1f6c0e417cd86bdf9d1d92e265923f29995",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "9/19 Kentucky"
+      ]
+    },
+    "12th_man|Missouri State|12th Man R Lot (74)": {
+      "digest": "3579feab647ae194b1fa41acdf89f66db98614a17c2c8a95f26220fefa8e12bc",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "9/5 Missouri State"
+      ]
+    },
+    "12th_man|Missouri State|Equine Complex": {
+      "digest": "459edc709adb1c44a4d2e1deb7837f280d41ec70e67d499b8f7fb03ac149c25f",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "9/5 Missouri State"
+      ]
+    },
+    "12th_man|Missouri State|Olsen RV": {
+      "digest": "58a01dd904eb6e66ff15ab532298b028f11939099d87307d3884e6dc3f351876",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "9/5 Missouri State"
+      ]
+    },
+    "12th_man|Tennessee|12th Man R Lot (74)": {
+      "digest": "3574ce65d5b868f0e1667875728dda9daacefeaf98691614639243a92faede32",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "11/14 Tennessee"
+      ]
+    },
+    "12th_man|Tennessee|Equine Complex": {
+      "digest": "6f85eb7f8e96f22b50140617cdd426ea308b392c898b958d48ed7057944f3532",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "11/14 Tennessee"
+      ]
+    },
+    "12th_man|Tennessee|Olsen RV": {
+      "digest": "03ac4a508bfaa3cb94f16639e1faad79062ce3e7d04515a48c6f004748f9e083",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "11/14 Tennessee"
+      ]
+    },
+    "12th_man|Texas|12th Man R Lot (74)": {
+      "digest": "6e1bac5b4608221976a7002095d5fe0beb4a184505c59217d1f985b1eda23a18",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "I understand that neither Texas A&M University nor Texas A&M University Transportation Services has verified the information posted on this website for accuracy and that I am using this website at my own risk.",
+        "12th Man R Lot (74)",
+        "11/27 Texas",
+        "Texas A&M University | Texas A&M Operations | University Contacts | Accessibility Policy | University Privacy & Security Policy | TS Privacy & Security Policy | PDF Reader"
+      ]
+    },
+    "12th_man|Texas|Equine Complex": {
+      "digest": "bb468b48207f8894425bc11cd6a451147d542e5f3aa87b36939edefadea75764",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "I understand that neither Texas A&M University nor Texas A&M University Transportation Services has verified the information posted on this website for accuracy and that I am using this website at my own risk.",
+        "Equine Complex",
+        "11/27 Texas",
+        "Texas A&M University | Texas A&M Operations | University Contacts | Accessibility Policy | University Privacy & Security Policy | TS Privacy & Security Policy | PDF Reader"
+      ]
+    },
+    "12th_man|Texas|Olsen RV": {
+      "digest": "2d36d23b6e08671b2c2d9236f5dd5d3a2b07eca121f496b2434fcfdde9407b8e",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "I understand that neither Texas A&M University nor Texas A&M University Transportation Services has verified the information posted on this website for accuracy and that I am using this website at my own risk.",
+        "Olsen RV",
+        "11/27 Texas",
+        "Texas A&M University | Texas A&M Operations | University Contacts | Accessibility Policy | University Privacy & Security Policy | TS Privacy & Security Policy | PDF Reader"
+      ]
+    },
+    "12th_man|The Citadel|12th Man R Lot (74)": {
+      "digest": "886bf2062a9ee42d6dbe466fd3607da3289e297c6b72a61401b20ecd4d00d81c",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "12th Man R Lot (74)",
+        "10/17 The Citadel"
+      ]
+    },
+    "12th_man|The Citadel|Equine Complex": {
+      "digest": "0d604a26bce9fd4b4f472b00c3d8dfc12cfa7bb3d552156b21c529c6c1a52a7c",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Equine Complex",
+        "10/17 The Citadel"
+      ]
+    },
+    "12th_man|The Citadel|Olsen RV": {
+      "digest": "8ccaf3f0f545f7e71885d02ab90a75da41d3b03868338c8d9f9d2faaf442108a",
+      "lines": [
+        "RV SPACE EXCHANGE FOR 12TH MAN LOTS",
+        "This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange .",
+        "Olsen RV",
+        "10/17 The Citadel"
+      ]
+    }
+  },
+  "initialized": true
 }
