@@ -1,0 +1,51 @@
+name: Texas A&M RV Monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tamu-rv-monitor
+  cancel-in-progress: false
+
+jobs:
+  check-rv-exchanges:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python packages
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Check both RV exchanges
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python rv_monitor.py
+
+      - name: Save monitor state
+        run: |
+          if git diff --quiet -- state.json 2>/dev/null && [ -f state.json ]; then
+            echo "No state change to commit."
+          else
+            git config user.name "rv-monitor-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add state.json
+            git commit -m "Update RV monitor state" || true
+            git push
+          fi
