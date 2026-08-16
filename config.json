@@ -1,6 +1,7 @@
 {
   "games_to_monitor": [
-    "Tennessee"
+    "Tennessee",
+    "Missouri State"
   ],
   "lots_to_monitor": [],
   "notify_for_any_space": true,
