@@ -1,4 +1,18 @@
 {
-  "initialized": false,
-  "sources": {}
+  "initialized": true,
+  "sources": {
+    "12th_man": {
+      "diagnostic": [
+        "Tennessee: selected successfully; page excerpt: Skip to Main Content Transportation Services MAPS VISITORS PARKING TRANSIT SUSTAINABLE TRANSPORTATION DEPARTMENTS ABOUT US MY PARKING TEXAS A&M UNIVERSITY Transportation Services HOME / BACK TO EVENTS RV SPACE EXCHANGE FOR 12TH MAN LOTS This page contains listings for the Equine Complex, Olsen and Lot R (74). For all other RV lots use the Transportation Services RV Football Exchange . SEARCH Game: Select One 9/5 Missouri State 9/12 Arizona State 9/19 Kentucky 10/3 Arkansas 10/17 The Citadel 11/14 Tennessee 11/27 Texas View All Listings There are no current postings for this game. VIEW/REMOVE POSTINGS First Name: Last Name: Removal Word/Phrase: Please enter exactly as you entered it when you "
+      ],
+      "items": [],
+      "ok": true,
+      "reason": ""
+    },
+    "transportation": {
+      "items": [],
+      "ok": false,
+      "reason": "Could not reach the public My Parking AVAILABLE PERMITS / RV Exchange page."
+    }
+  }
 }
