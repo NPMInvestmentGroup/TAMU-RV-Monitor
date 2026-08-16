@@ -12,7 +12,7 @@ CONFIG_PATH = ROOT / "config.json"
 STATE_PATH = ROOT / "state.json"
 
 # Public pages
-MY_PARKING_URL = "https://myparking.tamu.edu/"
+MY_PARKING_URL = "https://myparking.tamu.edu/rvx"
 TWELFTH_MAN_URL = "https://transport.tamu.edu/parking/events/rvexchange.aspx"
 
 def load_json(path, default):
