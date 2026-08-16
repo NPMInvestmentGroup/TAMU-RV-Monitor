@@ -1,16 +1,9 @@
 {
-  "preferred_games": [],
-  "preferred_lots": [],
-  "telegram_test_once": true,
-  "debug": true,
-  "sources": {
-    "transportation": {
-      "name": "Texas A&M Transportation RV Exchange",
-      "url": "https://transport2.tamu.edu/account/rvex/RVEXviewposting.aspx"
-    },
-    "12th_man": {
-      "name": "12th Man RV Space Exchange",
-      "url": "https://transport.tamu.edu/parking/events/rvexchange.aspx"
-    }
-  }
+  "games_to_monitor": [
+    "Tennessee"
+  ],
+  "lots_to_monitor": [],
+  "notify_for_any_space": true,
+  "check_transportation_exchange": true,
+  "check_12th_man_exchange": true
 }
