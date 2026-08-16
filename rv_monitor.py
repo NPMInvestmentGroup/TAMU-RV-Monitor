@@ -151,8 +151,8 @@ def game_card_info(page, game):
 
 def expand_myparking_game(page, game):
     """
-    The /rvx page is a React/Material-UI app. Locate the Tennessee card first,
-    then click the VIEW LISTINGS text/control inside that specific card.
+    Expand only by clicking the exact VIEW LISTINGS text inside the requested game card.
+    If the card says NO LISTINGS, do not click anything.
     """
     card = find_game_card_locator(page, game)
     if card is None:
@@ -164,72 +164,86 @@ def expand_myparking_game(page, game):
     except Exception:
         before = ""
 
-    if "no listings" in before.lower():
+    low = before.lower()
+
+    if "no listings" in low:
+        print(f"MY_PARKING_CLICK | {game}: NO LISTINGS")
         return True
-    if "hide listings" in before.lower() or "space #" in before.lower():
+
+    if "hide listings" in low or "space #" in low or "claim permit" in low:
+        print(f"MY_PARKING_CLICK | {game}: already expanded")
         return True
 
-    clicked = False
-
-    # First try the exact text inside the game card.
-    try:
-        view = card.get_by_text("VIEW LISTINGS", exact=True)
-        if view.count():
-            view.first.scroll_into_view_if_needed()
-            view.first.click(timeout=5000, force=True)
-            clicked = True
-    except Exception as exc:
-        print(f"MY_PARKING_CLICK_TEXT_ERROR | {type(exc).__name__}: {exc}")
-
-    # Fallback: locate a descendant containing the text and click its closest
-    # button-like/clickable ancestor, then the element itself if necessary.
-    if not clicked:
-        try:
-            clicked = card.evaluate("""
-            (card) => {
-              const norm = s => (s || '').replace(/\\s+/g,' ').trim().toUpperCase();
-              const descendants = [...card.querySelectorAll('*')];
-              const target = descendants.find(el => norm(el.textContent) === 'VIEW LISTINGS')
-                         || descendants.find(el => norm(el.textContent).includes('VIEW LISTINGS'));
-              if (!target) return false;
-
-              let cur = target;
-              for (let i=0; i<6 && cur && cur !== card.parentElement; i++, cur=cur.parentElement) {
-                const tag = (cur.tagName || '').toLowerCase();
-                const role = cur.getAttribute && cur.getAttribute('role');
-                const style = window.getComputedStyle(cur);
-                if (tag === 'button' || tag === 'a' || role === 'button' ||
-                    style.cursor === 'pointer' || cur.onclick) {
-                  cur.scrollIntoView({block:'center'});
-                  cur.click();
-                  return true;
-                }
-              }
-
-              target.scrollIntoView({block:'center'});
-              target.click();
-              return true;
-            }
-            """)
-        except Exception as exc:
-            print(f"MY_PARKING_CLICK_JS_ERROR | {type(exc).__name__}: {exc}")
-
-    if not clicked:
-        print(f"MY_PARKING_CLICK | {game}: VIEW LISTINGS target not clicked")
+    if "view listings" not in low:
+        print(f"MY_PARKING_CLICK | {game}: VIEW LISTINGS not present")
         return False
 
-    # Wait for the selected card to expose listing details.
+    # Click ONLY the exact descendant whose visible text is VIEW LISTINGS.
+    try:
+        clicked = card.evaluate("""
+        (card) => {
+          const norm = s => (s || '').replace(/\\s+/g,' ').trim().toUpperCase();
+
+          const candidates = [...card.querySelectorAll('*')]
+            .filter(el => norm(el.innerText || el.textContent) === 'VIEW LISTINGS');
+
+          if (!candidates.length) return false;
+
+          // Prefer the smallest exact-text element.
+          candidates.sort((a, b) =>
+            (a.outerHTML || '').length - (b.outerHTML || '').length
+          );
+
+          const target = candidates[0];
+          target.scrollIntoView({block:'center', inline:'center'});
+
+          // First click the exact VIEW LISTINGS element itself.
+          try {
+            target.click();
+            return true;
+          } catch (e) {}
+
+          // If React bound the handler to the immediate parent, click ONLY the
+          // nearest parent whose own visible text is still exactly VIEW LISTINGS.
+          let parent = target.parentElement;
+          for (let i = 0; i < 3 && parent && parent !== card; i++, parent = parent.parentElement) {
+            if (norm(parent.innerText || parent.textContent) === 'VIEW LISTINGS') {
+              try {
+                parent.click();
+                return true;
+              } catch (e) {}
+            }
+          }
+
+          // Final fallback: dispatch a mouse click on the exact text element.
+          target.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          }));
+          return true;
+        }
+        """)
+    except Exception as exc:
+        print(f"MY_PARKING_CLICK_EXACT_ERROR | {type(exc).__name__}: {exc}")
+        return False
+
+    if not clicked:
+        print(f"MY_PARKING_CLICK | {game}: exact VIEW LISTINGS element not found")
+        return False
+
+    # Confirm the card actually expanded.
     for _ in range(20):
         page.wait_for_timeout(400)
         info = game_card_info(page, game)
         if not info:
             continue
         low = info["text"].lower()
-        if "space #" in low or "claim permit" in low or "hide listings" in low or "no listings" in low:
+        if "hide listings" in low or "space #" in low or "claim permit" in low:
             print(f"MY_PARKING_CLICK | {game}: expanded")
             return True
 
-    print(f"MY_PARKING_CLICK | {game}: click sent but expansion not confirmed")
+    print(f"MY_PARKING_CLICK | {game}: exact VIEW LISTINGS click sent but expansion not confirmed")
     return False
 
 def parse_myparking_card(game, text, allowed_lots):
