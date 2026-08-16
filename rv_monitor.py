@@ -415,66 +415,119 @@ def select_game_dropdown(page, game):
     return False, []
 
 def extract_12th_man_results(page, game, allowed_lots):
-    # Ignore the VIEW/REMOVE and SELL forms entirely.
-    # We only accept relatively small blocks containing the selected game plus
-    # RV-lot/contact/listing-style data, and reject known form text.
-    reject = [
-        "view/remove postings",
-        "search for my postings",
-        "removal word/phrase",
-        "postings submitted through this site",
-        "sell first name",
-        "please select a game",
-    ]
+    """
+    Parse the actual 12th Man results table after the game dropdown has been selected.
 
-    candidates = page.locator("tr, li, article, .card, .row, fieldset, table")
+    The live page currently renders rows similar to:
+      First Name | Last Name | Park | Space | Game | [View]
+      John       | Delin     | R Lot (74) | 52 | RVEG1 | View
+
+    The selected opponent is not repeated in each row, so we must NOT require
+    the row text itself to contain "Missouri State" / "Tennessee".
+    """
     results = []
     seen = set()
 
-    for i in range(min(candidates.count(), 500)):
+    rows = page.locator("tr")
+    for i in range(rows.count()):
+        row = rows.nth(i)
+
         try:
-            txt = clean(candidates.nth(i).inner_text(timeout=500))
+            cells = [clean(x) for x in row.locator("th, td").all_text_contents()]
         except Exception:
             continue
 
-        low = txt.lower()
-        if not txt or len(txt) > 1600:
-            continue
-        if any(r in low for r in reject):
-            continue
-        if game.lower() not in low:
+        cells = [x for x in cells if x]
+        if not cells:
             continue
 
-        lot_words = ["equine", "olsen", "lot r", "lot 74", "rv"]
-        if allowed_lots:
-            if not any(x.lower() in low for x in allowed_lots):
-                continue
-        elif not any(x in low for x in lot_words):
+        row_text = clean(" | ".join(cells))
+        low = row_text.lower()
+
+        # Skip the header and unrelated management/form rows.
+        if (
+            "first name" in low and "last name" in low and "park" in low
+        ) or any(x in low for x in [
+            "view/remove postings",
+            "search for my postings",
+            "removal word/phrase",
+            "sell",
+        ]):
             continue
 
-        # Require something that makes this look like an actual posting/result.
-        posting_signals = [
-            "$", "phone", "email", "@", "space", "available",
-            "contact", "price", "asking"
-        ]
-        if not any(x in low for x in posting_signals):
+        # Find the park/lot column.
+        lot_index = None
+        lot = ""
+        for idx, cell in enumerate(cells):
+            c = cell.lower()
+            if (
+                "equine" in c
+                or "olsen" in c
+                or "lot r" in c
+                or "lot 74" in c
+                or "r lot" in c
+            ):
+                lot_index = idx
+                lot = cell
+                break
+
+        if lot_index is None:
             continue
 
-        item = {"game": game, "detail": txt}
+        if allowed_lots and not any(x.lower() in lot.lower() for x in allowed_lots):
+            continue
+
+        # On the live page the space value follows the Park column.
+        space = ""
+        if lot_index + 1 < len(cells):
+            candidate = clean(cells[lot_index + 1])
+            if candidate and candidate.lower() != "view":
+                space = candidate
+
+        # If the next cell wasn't usable, find the nearest numeric/alphanumeric
+        # value after the lot that is not the "View" link or game code.
+        if not space:
+            for candidate in cells[lot_index + 1:]:
+                c = candidate.strip()
+                if not c or c.lower() == "view":
+                    continue
+                if re.fullmatch(r"[A-Za-z0-9-]+", c):
+                    space = c
+                    break
+
+        if not space:
+            continue
+
+        # Seller name is everything before the park column.
+        seller = clean(" ".join(cells[:lot_index]))
+
+        # Preserve the page's game/permit code when present, e.g. RVEG1.
+        permit_code = ""
+        if lot_index + 2 < len(cells):
+            for candidate in cells[lot_index + 2:]:
+                if candidate.lower() == "view":
+                    continue
+                if re.fullmatch(r"RVEG\d+", candidate, re.I):
+                    permit_code = candidate
+                    break
+
+        item = {
+            "game": game,
+            "lot": lot,
+            "space": space,
+            "price": "",
+        }
+        if seller:
+            item["seller"] = seller
+        if permit_code:
+            item["permit_code"] = permit_code
+
         k = item_key(item)
         if k not in seen:
             seen.add(k)
             results.append(item)
 
-    # Prefer the smallest blocks so parent containers do not duplicate children.
-    results.sort(key=lambda x: len(x["detail"]))
-    filtered = []
-    for item in results:
-        if any(item["detail"] in old["detail"] for old in filtered):
-            continue
-        filtered.append(item)
-
-    return filtered[:30]
+    return results
 
 def check_12th_man(page, cfg):
     goto(page, TWELFTH_MAN_URL)
