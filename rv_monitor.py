@@ -73,80 +73,6 @@ def click_matching(page, phrases):
             pass
     return False
 
-
-def debug_myparking_game(page, game):
-    """Print DOM/click-target diagnostics for VIEW LISTINGS on the requested game."""
-    try:
-        data = page.evaluate("""
-        (game) => {
-          const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
-          const target = game.toLowerCase();
-          const all = [...document.querySelectorAll('body *')];
-          const hits = [];
-
-          for (const el of all) {
-            const txt = norm(el.innerText || el.textContent);
-            if (!txt.toLowerCase().includes('view listings')) continue;
-
-            let cur = el;
-            let belongs = false;
-            for (let i=0; i<10 && cur; i++, cur=cur.parentElement) {
-              const t = norm(cur.innerText || cur.textContent).toLowerCase();
-              if (t.includes(target) && t.includes('view listings')) {
-                belongs = true;
-                break;
-              }
-            }
-            if (!belongs) continue;
-
-            const chain = [];
-            cur = el;
-            for (let i=0; i<7 && cur; i++, cur=cur.parentElement) {
-              chain.push({
-                tag: cur.tagName || '',
-                id: cur.id || '',
-                cls: (typeof cur.className === 'string' ? cur.className : ''),
-                role: cur.getAttribute('role') || '',
-                onclick: cur.getAttribute('onclick') || '',
-                href: cur.getAttribute('href') || '',
-                ariaExpanded: cur.getAttribute('aria-expanded') || '',
-                dataToggle: cur.getAttribute('data-toggle') || cur.getAttribute('data-bs-toggle') || '',
-                dataTarget: cur.getAttribute('data-target') || cur.getAttribute('data-bs-target') || '',
-                text: norm(cur.innerText || cur.textContent).slice(0, 600),
-                html: (cur.outerHTML || '').slice(0, 2200)
-              });
-            }
-
-            hits.push({
-              tag: el.tagName || '',
-              id: el.id || '',
-              cls: (typeof el.className === 'string' ? el.className : ''),
-              text: txt.slice(0, 600),
-              html: (el.outerHTML || '').slice(0, 2800),
-              chain
-            });
-          }
-          return hits.slice(0, 10);
-        }
-        """, game)
-
-        print(f"MY_PARKING_DOM_DEBUG_START | game={game} | candidates={len(data)}")
-        for i, hit in enumerate(data):
-            print(f"MY_PARKING_TARGET[{i}] | tag={hit['tag']} | id={hit['id']} | class={hit['cls']} | text={hit['text']}")
-            print(f"MY_PARKING_TARGET_HTML[{i}] | {hit['html']}")
-            for j, node in enumerate(hit["chain"]):
-                print(
-                    f"MY_PARKING_ANCESTOR[{i}][{j}] | tag={node['tag']} | id={node['id']} | "
-                    f"class={node['cls']} | role={node['role']} | onclick={node['onclick']} | "
-                    f"href={node['href']} | aria-expanded={node['ariaExpanded']} | "
-                    f"data-toggle={node['dataToggle']} | data-target={node['dataTarget']} | text={node['text']}"
-                )
-                print(f"MY_PARKING_ANCESTOR_HTML[{i}][{j}] | {node['html']}")
-        print("MY_PARKING_DOM_DEBUG_END")
-    except Exception as exc:
-        print(f"MY_PARKING_DOM_DEBUG_ERROR | {type(exc).__name__}: {exc}")
-
-
 # ---------- MY PARKING / TRANSPORTATION EXCHANGE ----------
 
 def reach_public_myparking_exchange(page):
@@ -183,94 +109,168 @@ def reach_public_myparking_exchange(page):
 
     return False
 
+def find_game_card_locator(page, game):
+    """
+    Find the smallest Material-UI card/container that contains the configured
+    opponent plus Game # and VIEW LISTINGS / NO LISTINGS.
+    """
+    cards = page.locator("div")
+    best = None
+    best_len = None
+
+    for i in range(min(cards.count(), 1200)):
+        el = cards.nth(i)
+        try:
+            txt = clean(el.inner_text(timeout=250))
+        except Exception:
+            continue
+
+        low = txt.lower()
+        if game.lower() not in low or "game #" not in low:
+            continue
+        if "view listings" not in low and "no listings" not in low and "hide listings" not in low:
+            continue
+        # Avoid grabbing the whole page/container.
+        if len(txt) > 800:
+            continue
+
+        if best is None or len(txt) < best_len:
+            best = el
+            best_len = len(txt)
+
+    return best
+
 def game_card_info(page, game):
-    return page.evaluate("""
-    (game) => {
-      const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
-      const target = game.toLowerCase();
-      const els = [...document.querySelectorAll('body *')];
-      let candidates = [];
-
-      for (const el of els) {
-        const txt = norm(el.innerText);
-        if (!txt || !txt.toLowerCase().includes(target)) continue;
-
-        let cur = el;
-        for (let i=0; i<8 && cur; i++, cur=cur.parentElement) {
-          const t = norm(cur.innerText);
-          const low = t.toLowerCase();
-          if (low.includes(target) &&
-              (low.includes('view listings') ||
-               low.includes('hide listings') ||
-               low.includes('no listings') ||
-               low.includes('claim permit'))) {
-            candidates.push({
-              text: t,
-              length: t.length
-            });
-            break;
-          }
-        }
-      }
-
-      candidates.sort((a,b) => a.length - b.length);
-      return candidates.length ? candidates[0] : null;
-    }
-    """, game)
+    card = find_game_card_locator(page, game)
+    if card is None:
+        return None
+    try:
+        return {"text": clean(card.inner_text(timeout=1500))}
+    except Exception:
+        return None
 
 def expand_myparking_game(page, game):
-    return page.evaluate("""
-    (game) => {
-      const norm = s => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-      const target = game.toLowerCase();
+    """
+    The /rvx page is a React/Material-UI app. Locate the Tennessee card first,
+    then click the VIEW LISTINGS text/control inside that specific card.
+    """
+    card = find_game_card_locator(page, game)
+    if card is None:
+        print(f"MY_PARKING_CLICK | {game}: card not found")
+        return False
 
-      const controls = [...document.querySelectorAll('button,a,[role="button"]')];
-      for (const ctl of controls) {
-        if (!norm(ctl.innerText || ctl.textContent).includes('view listings')) continue;
-        let cur = ctl;
-        for (let i=0; i<8 && cur; i++, cur=cur.parentElement) {
-          if (norm(cur.innerText).includes(target)) {
-            ctl.click();
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-    """, game)
+    try:
+        before = clean(card.inner_text(timeout=1500))
+    except Exception:
+        before = ""
+
+    if "no listings" in before.lower():
+        return True
+    if "hide listings" in before.lower() or "space #" in before.lower():
+        return True
+
+    clicked = False
+
+    # First try the exact text inside the game card.
+    try:
+        view = card.get_by_text("VIEW LISTINGS", exact=True)
+        if view.count():
+            view.first.scroll_into_view_if_needed()
+            view.first.click(timeout=5000, force=True)
+            clicked = True
+    except Exception as exc:
+        print(f"MY_PARKING_CLICK_TEXT_ERROR | {type(exc).__name__}: {exc}")
+
+    # Fallback: locate a descendant containing the text and click its closest
+    # button-like/clickable ancestor, then the element itself if necessary.
+    if not clicked:
+        try:
+            clicked = card.evaluate("""
+            (card) => {
+              const norm = s => (s || '').replace(/\\s+/g,' ').trim().toUpperCase();
+              const descendants = [...card.querySelectorAll('*')];
+              const target = descendants.find(el => norm(el.textContent) === 'VIEW LISTINGS')
+                         || descendants.find(el => norm(el.textContent).includes('VIEW LISTINGS'));
+              if (!target) return false;
+
+              let cur = target;
+              for (let i=0; i<6 && cur && cur !== card.parentElement; i++, cur=cur.parentElement) {
+                const tag = (cur.tagName || '').toLowerCase();
+                const role = cur.getAttribute && cur.getAttribute('role');
+                const style = window.getComputedStyle(cur);
+                if (tag === 'button' || tag === 'a' || role === 'button' ||
+                    style.cursor === 'pointer' || cur.onclick) {
+                  cur.scrollIntoView({block:'center'});
+                  cur.click();
+                  return true;
+                }
+              }
+
+              target.scrollIntoView({block:'center'});
+              target.click();
+              return true;
+            }
+            """)
+        except Exception as exc:
+            print(f"MY_PARKING_CLICK_JS_ERROR | {type(exc).__name__}: {exc}")
+
+    if not clicked:
+        print(f"MY_PARKING_CLICK | {game}: VIEW LISTINGS target not clicked")
+        return False
+
+    # Wait for the selected card to expose listing details.
+    for _ in range(20):
+        page.wait_for_timeout(400)
+        info = game_card_info(page, game)
+        if not info:
+            continue
+        low = info["text"].lower()
+        if "space #" in low or "claim permit" in low or "hide listings" in low or "no listings" in low:
+            print(f"MY_PARKING_CLICK | {game}: expanded")
+            return True
+
+    print(f"MY_PARKING_CLICK | {game}: click sent but expansion not confirmed")
+    return False
 
 def parse_myparking_card(game, text, allowed_lots):
     txt = clean(text)
-    if "no listings" in txt.lower():
+    low = txt.lower()
+    if "no listings" in low:
         return []
 
-    # The live page displays records like:
-    # Aggie RV Park  Space # C02  $225.00  CLAIM PERMIT
+    # Typical visible listing:
+    # AGGIE RV PARK  Space # C02  $225.00  CLAIM PERMIT
     pattern = re.compile(
-        r"(?P<lot>[A-Za-z0-9 &'()./-]{2,80}?(?:RV Park|RV PARK|RV|Park))"
-        r"\s+Space\s*#\s*(?P<space>[A-Za-z0-9-]+)"
-        r"\s+\$?(?P<price>\d+(?:\.\d{2})?)",
+        r"(?P<lot>[A-Za-z0-9 &'()./-]{2,100}?(?:RV\\s*Park|RV\\s*Lot|Lot\\s*[A-Za-z0-9-]+))"
+        r"\\s+Space\\s*#\\s*(?P<space>[A-Za-z0-9-]+)"
+        r".{0,80}?\\$\\s*(?P<price>\\d+(?:\\.\\d{2})?)",
         re.I
     )
 
-    results = []
-    seen = set()
+    results, seen = [], set()
     for m in pattern.finditer(txt):
         lot = clean(m.group("lot"))
         space = clean(m.group("space"))
         price = clean(m.group("price"))
         if allowed_lots and not any(x.lower() in lot.lower() for x in allowed_lots):
             continue
-        item = {
-            "game": game,
-            "lot": lot,
-            "space": space,
-            "price": price,
-        }
+        item = {"game": game, "lot": lot, "space": space, "price": price}
         k = item_key(item)
         if k not in seen:
             seen.add(k)
             results.append(item)
+
+    # Fallback if the site wording around the lot changes.
+    if not results and "space #" in low:
+        spaces = re.findall(r"Space\\s*#\\s*([A-Za-z0-9-]+)", txt, re.I)
+        prices = re.findall(r"\\$\\s*(\\d+(?:\\.\\d{2})?)", txt)
+        for idx, space in enumerate(spaces):
+            price = prices[idx] if idx < len(prices) else ""
+            item = {"game": game, "lot": "RV Space", "space": space, "price": price}
+            k = item_key(item)
+            if k not in seen:
+                seen.add(k)
+                results.append(item)
 
     return results
 
@@ -291,12 +291,14 @@ def check_myparking(page, cfg):
             continue
 
         if "view listings" in before["text"].lower():
-            debug_myparking_game(page, game)
             try:
-                if expand_myparking_game(page, game):
+                expanded = expand_myparking_game(page, game)
+                if expanded:
                     page.wait_for_timeout(1200)
+                else:
+                    diagnostics.append(f"{game}: VIEW LISTINGS click did not expand")
             except Exception as exc:
-                print(f"MY_PARKING_CLICK_ERROR | {type(exc).__name__}: {exc}")
+                diagnostics.append(f"{game}: expansion error {type(exc).__name__}: {exc}")
 
         after = game_card_info(page, game)
         if not after:
