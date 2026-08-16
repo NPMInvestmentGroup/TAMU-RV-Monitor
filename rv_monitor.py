@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
 STATE_PATH = ROOT / "state.json"
 
+# Public pages
 MY_PARKING_URL = "https://myparking.tamu.edu/"
 TWELFTH_MAN_URL = "https://transport.tamu.edu/parking/events/rvexchange.aspx"
 
@@ -23,15 +24,16 @@ def save_json(path, data):
 def clean(text):
     return re.sub(r"\s+", " ", text or "").strip()
 
-def key_for(item):
-    raw = json.dumps(item, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+def item_key(item):
+    return hashlib.sha256(
+        json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
 
 def telegram_send(message):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:
-        raise RuntimeError("Telegram GitHub secrets are missing.")
+        raise RuntimeError("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID GitHub secret.")
     r = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
         json={"chat_id": chat_id, "text": message, "disable_web_page_preview": True},
@@ -42,342 +44,447 @@ def telegram_send(message):
 def goto(page, url):
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
     try:
-        page.wait_for_load_state("networkidle", timeout=12000)
+        page.wait_for_load_state("networkidle", timeout=10000)
     except PlaywrightTimeoutError:
         pass
-    page.wait_for_timeout(1800)
+    page.wait_for_timeout(1500)
 
-def body_text(page):
+def visible_text(page):
     return page.locator("body").inner_text(timeout=15000)
 
-def looks_like_login(page):
-    text = body_text(page).lower()
-    password_fields = page.locator('input[type="password"]').count()
-    return password_fields > 0 or (
-        ("netid" in text or "log in" in text or "login" in text)
-        and "claim rv permit" not in text
-        and "available permits" not in text
-    )
-
-def click_text_if_present(page, phrases):
+def click_matching(page, phrases):
     for phrase in phrases:
-        loc = page.get_by_text(phrase, exact=False)
-        if loc.count():
+        for role in ("button", "link"):
             try:
-                loc.first.click(timeout=5000)
-                page.wait_for_timeout(1200)
-                try:
-                    page.wait_for_load_state("networkidle", timeout=8000)
-                except PlaywrightTimeoutError:
-                    pass
-                return True
+                loc = page.get_by_role(role, name=re.compile(re.escape(phrase), re.I))
+                if loc.count():
+                    loc.first.click(timeout=5000)
+                    page.wait_for_timeout(1200)
+                    return True
             except Exception:
                 pass
+        try:
+            loc = page.get_by_text(phrase, exact=False)
+            if loc.count():
+                loc.first.click(timeout=5000)
+                page.wait_for_timeout(1200)
+                return True
+        except Exception:
+            pass
     return False
 
-def reach_rv_claim_page(page):
+# ---------- MY PARKING / TRANSPORTATION EXCHANGE ----------
+
+def reach_public_myparking_exchange(page):
     goto(page, MY_PARKING_URL)
 
-    text = body_text(page).lower()
-    if "available permits" in text and ("rv" in text or "claim permit" in text):
-        return True, ""
+    # IMPORTANT: "MY PARKING" text/header alone does NOT mean login is required.
+    text = visible_text(page).lower()
+    if "available permits" in text and ("view listings" in text or "no listings" in text):
+        return True
 
-    if looks_like_login(page):
-        return False, "My Parking presented a login page."
+    # Try public RV exchange navigation.
+    click_matching(page, ["RV Exchange", "RV Football Exchange"])
+    text = visible_text(page).lower()
+    if "available permits" in text and ("view listings" in text or "no listings" in text):
+        return True
 
-    click_text_if_present(page, ["RV Exchange"])
-    text = body_text(page).lower()
-
-    if "claim rv permit" in text:
-        click_text_if_present(page, ["Claim RV Permit"])
-
-    text = body_text(page).lower()
-    if "available permits" in text or ("claim permit" in text and "game #" in text):
-        return True, ""
-
+    # Search public links for an RV exchange/claim destination.
     links = page.locator("a").evaluate_all("""
-      els => els.map(a => ({
-        text: (a.textContent || "").trim(),
-        href: a.href || ""
-      }))
+        els => els.map(a => ({
+          text: (a.textContent || '').trim(),
+          href: a.href || ''
+        }))
     """)
     for link in links:
         hay = (link["text"] + " " + link["href"]).lower()
         if "rv" in hay and ("exchange" in hay or "permit" in hay):
             try:
                 goto(page, link["href"])
-                text = body_text(page).lower()
-                if "available permits" in text or ("claim permit" in text and "game #" in text):
-                    return True, ""
+                text = visible_text(page).lower()
+                if "available permits" in text and ("view listings" in text or "no listings" in text):
+                    return True
             except Exception:
                 pass
 
-    return False, "Could not reach the My Parking RV claim page."
+    return False
 
-def find_game_container(page, game):
-    js = """
+def game_card_info(page, game):
+    return page.evaluate("""
     (game) => {
-      const norm = s => (s || '').replace(/\\s+/g,' ').trim().toLowerCase();
+      const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
       const target = game.toLowerCase();
-      const all = [...document.querySelectorAll('body *')];
-      const hits = all.filter(el => norm(el.textContent).includes(target));
-      let best = null;
-      let bestLen = Infinity;
-      for (const el of hits) {
+      const els = [...document.querySelectorAll('body *')];
+      let candidates = [];
+
+      for (const el of els) {
+        const txt = norm(el.innerText);
+        if (!txt || !txt.toLowerCase().includes(target)) continue;
+
         let cur = el;
         for (let i=0; i<8 && cur; i++, cur=cur.parentElement) {
           const t = norm(cur.innerText);
-          if (t.includes(target) &&
-              (t.includes('view listings') || t.includes('hide listings') ||
-               t.includes('no listings') || t.includes('claim permit'))) {
-            if (t.length < bestLen) {
-              best = cur;
-              bestLen = t.length;
-            }
+          const low = t.toLowerCase();
+          if (low.includes(target) &&
+              (low.includes('view listings') ||
+               low.includes('hide listings') ||
+               low.includes('no listings') ||
+               low.includes('claim permit'))) {
+            candidates.push({
+              text: t,
+              length: t.length
+            });
             break;
           }
         }
       }
-      return best ? {text: best.innerText || ''} : null;
-    }
-    """
-    return page.evaluate(js, game)
 
-def expand_game(page, game):
-    js = """
+      candidates.sort((a,b) => a.length - b.length);
+      return candidates.length ? candidates[0] : null;
+    }
+    """, game)
+
+def expand_myparking_game(page, game):
+    return page.evaluate("""
     (game) => {
-      const norm = s => (s || '').replace(/\\s+/g,' ').trim().toLowerCase();
+      const norm = s => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
       const target = game.toLowerCase();
+
       const controls = [...document.querySelectorAll('button,a,[role="button"]')];
-      for (const btn of controls) {
-        if (!norm(btn.textContent).includes('view listings')) continue;
-        let cur = btn;
+      for (const ctl of controls) {
+        if (!norm(ctl.innerText || ctl.textContent).includes('view listings')) continue;
+        let cur = ctl;
         for (let i=0; i<8 && cur; i++, cur=cur.parentElement) {
           if (norm(cur.innerText).includes(target)) {
-            btn.click();
+            ctl.click();
             return true;
           }
         }
       }
       return false;
     }
-    """
-    try:
-        clicked = page.evaluate(js, game)
-        if clicked:
-            page.wait_for_timeout(1200)
-        return clicked
-    except Exception:
-        return False
+    """, game)
 
-def parse_myparking_game_text(game, text, allowed_lots):
+def parse_myparking_card(game, text, allowed_lots):
     txt = clean(text)
     if "no listings" in txt.lower():
         return []
 
+    # The live page displays records like:
+    # Aggie RV Park  Space # C02  $225.00  CLAIM PERMIT
     pattern = re.compile(
-        r"(?P<lot>[A-Za-z0-9 &'()./-]{3,60}?(?:RV Park|RV|Park|Lot\s*\d+[A-Za-z ]*))"
+        r"(?P<lot>[A-Za-z0-9 &'()./-]{2,80}?(?:RV Park|RV PARK|RV|Park))"
         r"\s+Space\s*#\s*(?P<space>[A-Za-z0-9-]+)"
-        r"(?:\s+\$?(?P<price>\d+(?:\.\d{2})?))?",
-        re.IGNORECASE
+        r"\s+\$?(?P<price>\d+(?:\.\d{2})?)",
+        re.I
     )
 
-    items, seen = [], set()
+    results = []
+    seen = set()
     for m in pattern.finditer(txt):
         lot = clean(m.group("lot"))
         space = clean(m.group("space"))
-        price = clean(m.group("price") or "")
+        price = clean(m.group("price"))
         if allowed_lots and not any(x.lower() in lot.lower() for x in allowed_lots):
             continue
-        item = {"game": game, "lot": lot, "space": space, "price": price}
-        k = key_for(item)
+        item = {
+            "game": game,
+            "lot": lot,
+            "space": space,
+            "price": price,
+        }
+        k = item_key(item)
         if k not in seen:
             seen.add(k)
-            items.append(item)
+            results.append(item)
 
-    if not items and "claim permit" in txt.lower() and "space #" in txt.lower():
-        m = re.search(r"Space\s*#\s*([A-Za-z0-9-]+)", txt, re.I)
-        if m:
-            items.append({"game": game, "lot": "RV Space", "space": m.group(1), "price": ""})
+    return results
 
-    return items
+def check_myparking(page, cfg):
+    if not reach_public_myparking_exchange(page):
+        return {
+            "ok": False,
+            "reason": "Could not reach the public My Parking AVAILABLE PERMITS / RV Exchange page.",
+            "items": [],
+        }
 
-def myparking_snapshot(page, cfg):
-    ok, reason = reach_rv_claim_page(page)
-    if not ok:
-        return {"ok": False, "reason": reason, "items": []}
-
-    games = cfg.get("games_to_monitor", [])
-    lots = cfg.get("lots_to_monitor", [])
-    items = []
+    results = []
     diagnostics = []
-
-    for game in games:
-        expand_game(page, game)
-        container = find_game_container(page, game)
-        if not container:
+    for game in cfg.get("games_to_monitor", []):
+        before = game_card_info(page, game)
+        if not before:
             diagnostics.append(f"{game}: game card not found")
             continue
-        text = container["text"]
-        diagnostics.append(f"{game}: {clean(text)[:500]}")
-        items.extend(parse_myparking_game_text(game, text, lots))
 
-    return {"ok": True, "reason": "", "items": items, "diagnostic": diagnostics}
+        if "view listings" in before["text"].lower():
+            try:
+                if expand_myparking_game(page, game):
+                    page.wait_for_timeout(1200)
+            except Exception:
+                pass
 
-def twelfth_man_snapshot(page, cfg):
-    goto(page, TWELFTH_MAN_URL)
-    games = cfg.get("games_to_monitor", [])
-    lots = cfg.get("lots_to_monitor", [])
-    items = []
+        after = game_card_info(page, game)
+        if not after:
+            diagnostics.append(f"{game}: game card disappeared after expansion")
+            continue
 
-    checks = page.locator('input[type="checkbox"]')
-    for i in range(checks.count()):
+        diagnostics.append(f"{game}: {clean(after['text'])[:900]}")
+        results.extend(
+            parse_myparking_card(
+                game,
+                after["text"],
+                cfg.get("lots_to_monitor", []),
+            )
+        )
+
+    return {"ok": True, "reason": "", "items": results, "diagnostic": diagnostics}
+
+# ---------- 12TH MAN EXCHANGE ----------
+
+def click_agree(page):
+    # Exact flow shown by the public page: I AGREE first.
+    for name in ["I AGREE", "I Agree", "Agree"]:
         try:
-            if not checks.nth(i).is_checked():
-                checks.nth(i).check()
+            btn = page.get_by_role("button", name=re.compile(f"^{re.escape(name)}$", re.I))
+            if btn.count():
+                btn.first.click(timeout=5000)
+                page.wait_for_timeout(1000)
+                return True
         except Exception:
             pass
 
-    for game in games:
-        selects = page.locator("select")
-        for i in range(selects.count()):
+    try:
+        loc = page.get_by_text("I AGREE", exact=False)
+        if loc.count():
+            loc.first.click(timeout=5000)
+            page.wait_for_timeout(1000)
+            return True
+    except Exception:
+        pass
+
+    # It may already be agreed if the Game dropdown is visible.
+    return page.locator("select").count() > 0
+
+def select_game_dropdown(page, game):
+    selects = page.locator("select")
+    for i in range(selects.count()):
+        sel = selects.nth(i)
+        try:
+            options = [clean(x) for x in sel.locator("option").all_text_contents()]
+        except Exception:
+            continue
+
+        match = next((x for x in options if game.lower() in x.lower()), None)
+        if match:
+            sel.select_option(label=match)
+            page.wait_for_timeout(1200)
             try:
-                options = selects.nth(i).locator("option").all_text_contents()
-            except Exception:
+                page.wait_for_load_state("networkidle", timeout=8000)
+            except PlaywrightTimeoutError:
+                pass
+            return True, options
+    return False, []
+
+def extract_12th_man_results(page, game, allowed_lots):
+    # Ignore the VIEW/REMOVE and SELL forms entirely.
+    # We only accept relatively small blocks containing the selected game plus
+    # RV-lot/contact/listing-style data, and reject known form text.
+    reject = [
+        "view/remove postings",
+        "search for my postings",
+        "removal word/phrase",
+        "postings submitted through this site",
+        "sell first name",
+        "please select a game",
+    ]
+
+    candidates = page.locator("tr, li, article, .card, .row, fieldset, table")
+    results = []
+    seen = set()
+
+    for i in range(min(candidates.count(), 500)):
+        try:
+            txt = clean(candidates.nth(i).inner_text(timeout=500))
+        except Exception:
+            continue
+
+        low = txt.lower()
+        if not txt or len(txt) > 1600:
+            continue
+        if any(r in low for r in reject):
+            continue
+        if game.lower() not in low:
+            continue
+
+        lot_words = ["equine", "olsen", "lot r", "lot 74", "rv"]
+        if allowed_lots:
+            if not any(x.lower() in low for x in allowed_lots):
                 continue
-            match = next((x for x in options if game.lower() in clean(x).lower()), None)
-            if match:
-                try:
-                    selects.nth(i).select_option(label=match)
-                    page.wait_for_timeout(500)
-                except Exception:
-                    pass
+        elif not any(x in low for x in lot_words):
+            continue
 
-        for label in ["Search", "Submit", "View", "Find"]:
-            loc = page.get_by_text(label, exact=False)
-            if loc.count():
-                try:
-                    loc.first.click(timeout=3000)
-                    page.wait_for_timeout(1000)
-                    break
-                except Exception:
-                    pass
+        # Require something that makes this look like an actual posting/result.
+        posting_signals = [
+            "$", "phone", "email", "@", "space", "available",
+            "contact", "price", "asking"
+        ]
+        if not any(x in low for x in posting_signals):
+            continue
 
-        selectors = ["tr", "li", ".card", "article", "div"]
-        candidates = []
-        for sel in selectors:
-            loc = page.locator(sel)
-            count = min(loc.count(), 400)
-            for i in range(count):
-                try:
-                    t = clean(loc.nth(i).inner_text(timeout=700))
-                except Exception:
-                    continue
-                low = t.lower()
-                if game.lower() not in low:
-                    continue
-                if not any(k in low for k in ("olsen", "equine", "lot r", "lot 74", "space", "@", "phone", "$")):
-                    continue
-                if len(t) > 1200:
-                    continue
-                if lots and not any(x.lower() in low for x in lots):
-                    continue
-                candidates.append(t)
+        item = {"game": game, "detail": txt}
+        k = item_key(item)
+        if k not in seen:
+            seen.add(k)
+            results.append(item)
 
-        seen = set()
-        for c in sorted(candidates, key=len):
-            if c.lower() in seen:
-                continue
-            seen.add(c.lower())
-            items.append({"game": game, "detail": c})
-            if len(items) >= 30:
-                break
+    # Prefer the smallest blocks so parent containers do not duplicate children.
+    results.sort(key=lambda x: len(x["detail"]))
+    filtered = []
+    for item in results:
+        if any(item["detail"] in old["detail"] for old in filtered):
+            continue
+        filtered.append(item)
 
-    return {"ok": True, "reason": "", "items": items}
+    return filtered[:30]
 
-def new_items(old, new):
-    old_keys = {key_for(x) for x in (old or {}).get("items", [])}
-    return [x for x in new.get("items", []) if key_for(x) not in old_keys]
+def check_12th_man(page, cfg):
+    goto(page, TWELFTH_MAN_URL)
+
+    if not click_agree(page):
+        return {
+            "ok": False,
+            "reason": "Could not click I AGREE and no Game dropdown appeared.",
+            "items": [],
+        }
+
+    results = []
+    diagnostics = []
+
+    for game in cfg.get("games_to_monitor", []):
+        ok, options = select_game_dropdown(page, game)
+        if not ok:
+            diagnostics.append(
+                f"{game}: not found in Game dropdown. Options: {options}"
+            )
+            continue
+
+        page.wait_for_timeout(1200)
+        page_text = clean(visible_text(page))
+        diagnostics.append(f"{game}: selected successfully; page excerpt: {page_text[:700]}")
+
+        results.extend(
+            extract_12th_man_results(
+                page,
+                game,
+                cfg.get("lots_to_monitor", []),
+            )
+        )
+
+    return {"ok": True, "reason": "", "items": results, "diagnostic": diagnostics}
+
+# ---------- STATE / ALERTING ----------
+
+def additions(previous_snapshot, current_snapshot):
+    old = {item_key(x) for x in (previous_snapshot or {}).get("items", [])}
+    return [x for x in current_snapshot.get("items", []) if item_key(x) not in old]
 
 def describe(item):
     if "space" in item:
         price = f" — ${item['price']}" if item.get("price") else ""
-        return f"{item.get('game','')} — {item.get('lot','')} — Space #{item.get('space','')}{price}"
-    return clean(item.get("detail", ""))[:600]
+        return (
+            f"{item.get('game','')} — {item.get('lot','')} — "
+            f"Space #{item.get('space','')}{price}"
+        )
+    return clean(item.get("detail", ""))[:700]
 
 def main():
     cfg = load_json(CONFIG_PATH, {})
     state = load_json(STATE_PATH, {"initialized": False, "sources": {}})
-    previous = state.get("sources", {})
+    old_sources = state.get("sources", {})
     current = {}
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (compatible; Aggie-RV-Availability-Watcher/3.0; personal-use)"
+            viewport={"width": 1440, "height": 1200},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/131.0.0.0 Safari/537.36",
         )
         page = context.new_page()
 
         if cfg.get("check_transportation_exchange", True):
             try:
-                snap = myparking_snapshot(page, cfg)
+                snap = check_myparking(page, cfg)
             except Exception as exc:
-                snap = {"ok": False, "reason": f"{type(exc).__name__}: {exc}", "items": []}
+                snap = {
+                    "ok": False,
+                    "reason": f"{type(exc).__name__}: {exc}",
+                    "items": [],
+                }
             current["transportation"] = snap
             if snap["ok"]:
-                print(f"SOURCE OK | My Parking RV Exchange | detected monitored listings: {len(snap['items'])}")
-                for item in snap["items"]:
-                    print("  ITEM:", describe(item))
+                print(
+                    "SOURCE OK | My Parking RV Exchange | "
+                    f"detected monitored listings: {len(snap['items'])}"
+                )
+                for x in snap["items"]:
+                    print("ITEM:", describe(x))
                 for d in snap.get("diagnostic", []):
-                    print("  DIAGNOSTIC:", d)
+                    print("DIAGNOSTIC:", d)
             else:
-                print(f"SOURCE FAILED | My Parking RV Exchange | {snap['reason']}")
+                print("SOURCE FAILED | My Parking RV Exchange |", snap["reason"])
 
         if cfg.get("check_12th_man_exchange", True):
             try:
-                snap = twelfth_man_snapshot(page, cfg)
+                snap = check_12th_man(page, cfg)
             except Exception as exc:
-                snap = {"ok": False, "reason": f"{type(exc).__name__}: {exc}", "items": []}
+                snap = {
+                    "ok": False,
+                    "reason": f"{type(exc).__name__}: {exc}",
+                    "items": [],
+                }
             current["12th_man"] = snap
             if snap["ok"]:
-                print(f"SOURCE OK | 12th Man RV Space Exchange | detected monitored listings: {len(snap['items'])}")
-                for item in snap["items"][:20]:
-                    print("  ITEM:", describe(item))
+                print(
+                    "SOURCE OK | 12th Man RV Space Exchange | "
+                    f"detected monitored listings: {len(snap['items'])}"
+                )
+                for x in snap["items"]:
+                    print("ITEM:", describe(x))
+                for d in snap.get("diagnostic", []):
+                    print("DIAGNOSTIC:", d)
             else:
-                print(f"SOURCE FAILED | 12th Man RV Space Exchange | {snap['reason']}")
+                print("SOURCE FAILED | 12th Man RV Space Exchange |", snap["reason"])
 
         browser.close()
 
     first_run = not state.get("initialized", False)
 
-    if not first_run:
-        for source_key, snap in current.items():
-            old = previous.get(source_key, {})
+    if first_run:
+        print("BASELINE CREATED | existing listings recorded without alerting.")
+    else:
+        for source, snap in current.items():
             if not snap.get("ok"):
-                if old.get("ok"):
+                if old_sources.get(source, {}).get("ok"):
                     telegram_send(
                         "⚠️ Aggie RV Monitor source problem\n\n"
-                        f"{source_key}: {snap.get('reason','Unknown error')}"
+                        f"{source}: {snap.get('reason', 'Unknown error')}"
                     )
                 continue
 
-            additions = new_items(old, snap)
-            for item in additions:
+            for item in additions(old_sources.get(source, {}), snap):
                 telegram_send(
                     "🚨 AGGIE RV SPACE AVAILABLE\n\n"
                     f"{describe(item)}\n\n"
-                    "Open the exchange now to claim/check the space."
+                    "Open the appropriate Texas A&M RV exchange now."
                 )
                 print("ALERT SENT:", describe(item))
 
     state["initialized"] = True
     state["sources"] = current
     save_json(STATE_PATH, state)
-
-    if first_run:
-        print("BASELINE CREATED | existing listings were recorded without alerting.")
-    else:
-        print("MONITOR COMPLETE")
+    print("MONITOR COMPLETE")
 
 if __name__ == "__main__":
     main()
