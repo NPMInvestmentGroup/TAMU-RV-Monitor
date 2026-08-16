@@ -2,7 +2,7 @@ name: Texas A&M RV Monitor
 
 on:
   schedule:
-    - cron: "*/25 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
