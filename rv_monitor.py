@@ -247,44 +247,82 @@ def expand_myparking_game(page, game):
     return False
 
 def parse_myparking_card(game, text, allowed_lots):
+    """
+    Parse expanded My Parking game-card text.
+
+    Current live page example:
+    TENNESSEE Game #6 HIDE LISTINGS
+    AGGIE RV PARK
+    Space Price
+    Aggie RV Park
+    Space # C02
+    $225.00
+    CLAIM PERMIT
+
+    The parser intentionally keys each listing off "Space #..." and then looks
+    backward for the nearest RV lot name and forward for the nearest price.
+    """
     txt = clean(text)
     low = txt.lower()
+
     if "no listings" in low:
         return []
 
-    # Typical visible listing:
-    # AGGIE RV PARK  Space # C02  $225.00  CLAIM PERMIT
-    pattern = re.compile(
-        r"(?P<lot>[A-Za-z0-9 &'()./-]{2,100}?(?:RV\\s*Park|RV\\s*Lot|Lot\\s*[A-Za-z0-9-]+))"
-        r"\\s+Space\\s*#\\s*(?P<space>[A-Za-z0-9-]+)"
-        r".{0,80}?\\$\\s*(?P<price>\\d+(?:\\.\\d{2})?)",
-        re.I
-    )
+    results = []
+    seen = set()
 
-    results, seen = [], set()
-    for m in pattern.finditer(txt):
-        lot = clean(m.group("lot"))
-        space = clean(m.group("space"))
-        price = clean(m.group("price"))
+    # Find each permit by its unique space number.
+    space_matches = list(re.finditer(
+        r"Space\s*#\s*(?P<space>[A-Za-z0-9-]+)",
+        txt,
+        re.I
+    ))
+
+    for sm in space_matches:
+        space = clean(sm.group("space"))
+
+        # Look backward from the space number for the nearest plausible lot name.
+        before = txt[max(0, sm.start() - 220):sm.start()]
+
+        lot_patterns = [
+            r"([A-Za-z0-9 &'()./-]{2,80}?\s+RV\s+Park)",
+            r"([A-Za-z0-9 &'()./-]{2,80}?\s+RV\s+Lot)",
+            r"(Lot\s+\d+[A-Za-z0-9 &'()./-]{0,40})",
+            r"(Aggie\s+RV\s+Park)",
+        ]
+
+        lot = ""
+        lot_candidates = []
+        for pat in lot_patterns:
+            for lm in re.finditer(pat, before, re.I):
+                lot_candidates.append((lm.end(), clean(lm.group(1))))
+
+        if lot_candidates:
+            # Nearest matching lot name before the "Space #" occurrence.
+            lot = sorted(lot_candidates, key=lambda x: x[0])[-1][1]
+
+        if not lot:
+            lot = "RV Space"
+
         if allowed_lots and not any(x.lower() in lot.lower() for x in allowed_lots):
             continue
-        item = {"game": game, "lot": lot, "space": space, "price": price}
+
+        # Look just after the space number for the first dollar amount.
+        after = txt[sm.end():sm.end() + 140]
+        pm = re.search(r"\$\s*(\d+(?:\.\d{2})?)", after)
+        price = clean(pm.group(1)) if pm else ""
+
+        item = {
+            "game": game,
+            "lot": lot,
+            "space": space,
+            "price": price,
+        }
+
         k = item_key(item)
         if k not in seen:
             seen.add(k)
             results.append(item)
-
-    # Fallback if the site wording around the lot changes.
-    if not results and "space #" in low:
-        spaces = re.findall(r"Space\\s*#\\s*([A-Za-z0-9-]+)", txt, re.I)
-        prices = re.findall(r"\\$\\s*(\\d+(?:\\.\\d{2})?)", txt)
-        for idx, space in enumerate(spaces):
-            price = prices[idx] if idx < len(prices) else ""
-            item = {"game": game, "lot": "RV Space", "space": space, "price": price}
-            k = item_key(item)
-            if k not in seen:
-                seen.add(k)
-                results.append(item)
 
     return results
 
