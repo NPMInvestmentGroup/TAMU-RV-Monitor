@@ -13,7 +13,14 @@
       "diagnostic": [
         "Tennessee: NOV 14 TENNESSEE Game #6 HIDE LISTINGS AGGIE RV PARK Space Price Aggie RV Park Space # C02 $225.00 CLAIM PERMIT"
       ],
-      "items": [],
+      "items": [
+        {
+          "game": "Tennessee",
+          "lot": "Aggie RV Park",
+          "price": "225.00",
+          "space": "C02"
+        }
+      ],
       "ok": true,
       "reason": ""
     }
