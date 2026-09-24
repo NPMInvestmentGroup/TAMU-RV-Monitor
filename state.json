@@ -20,9 +20,16 @@
     },
     "transportation": {
       "diagnostic": [
-        "Tennessee: NOV 14 TENNESSEE Game #6 NO LISTINGS"
+        "Tennessee: NOV 14 TENNESSEE Game #6 HIDE LISTINGS Claim deadline: Tue, Nov 10 2026 12:00 PM LOT 58 RV PARK Space Price Lot 58 RV Park Space # 058RV003 $287.50 CLAIM PERMIT"
       ],
-      "items": [],
+      "items": [
+        {
+          "game": "Tennessee",
+          "lot": "LOT 58 RV PARK Space Price Lot 58 RV Park",
+          "price": "287.50",
+          "space": "058RV003"
+        }
+      ],
       "ok": true,
       "reason": ""
     }
