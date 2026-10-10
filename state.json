@@ -10,12 +10,9 @@
       "reason": ""
     },
     "transportation": {
-      "diagnostic": [
-        "Tennessee: NOV 14 TENNESSEE Game #6 NO LISTINGS"
-      ],
       "items": [],
-      "ok": true,
-      "reason": ""
+      "ok": false,
+      "reason": "Could not reach the public My Parking AVAILABLE PERMITS / RV Exchange page."
     }
   }
 }
